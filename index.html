@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura | AI Resume Analyzer & Coach</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tesseract OCR Library -->
+    <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation / Left Panel: Input -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-glow"></div>
+                <i data-lucide="sparkles" class="brand-icon"></i>
+                <div class="brand-text">
+                    <h1>Aura</h1>
+                    <span>AI Career Coach</span>
+                </div>
+            </div>
+
+            <!-- Preset Selector -->
+            <div class="sidebar-section">
+                <h2 class="section-title">Presets <span class="badge">Quick Test</span></h2>
+                <div class="preset-grid">
+                    <button class="preset-btn active" data-preset="frontend">
+                        <i data-lucide="code-2"></i>
+                        <span>Frontend Dev</span>
+                    </button>
+                    <button class="preset-btn" data-preset="pm">
+                        <i data-lucide="briefcase"></i>
+                        <span>Product Manager</span>
+                    </button>
+                    <button class="preset-btn" data-preset="ds">
+                        <i data-lucide="database"></i>
+                        <span>Data Scientist</span>
+                    </button>
+                    <button class="preset-btn" data-preset="ux">
+                        <i data-lucide="palette"></i>
+                        <span>UX Designer</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resume Upload/Paste -->
+            <div class="sidebar-section">
+                <h2 class="section-title">Upload Resume</h2>
+                <div class="upload-zone" id="dropzone">
+                    <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" style="display: none;">
+                    <i data-lucide="image" class="upload-icon"></i>
+                    <p class="upload-main-text">Drag & drop resume image</p>
+                    <p class="upload-sub-text">Supports PNG, JPG, JPEG, WEBP</p>
+                    <button class="browse-btn" onclick="document.getElementById('file-input').click()">Browse Images</button>
+                    
+                    <!-- OCR Scanner Progress Overlay -->
+                    <div class="ocr-overlay hidden" id="ocr-overlay">
+                        <div class="ocr-scanner-line"></div>
+                        <div class="ocr-spinner"></div>
+                        <span class="ocr-status-title">Scanning Image...</span>
+                        <span class="ocr-status-percent" id="ocr-percent">0%</span>
+                    </div>
+                </div>
+                <div class="text-input-toggle">
+                    <button id="toggle-paste" class="text-link-btn">Or paste resume text</button>
+                </div>
+                <div class="paste-area-container hidden" id="paste-container">
+                    <textarea id="resume-paste" placeholder="Paste your resume text here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Job Description -->
+            <div class="sidebar-section flex-grow">
+                <h2 class="section-title">Target Job Description</h2>
+                <textarea id="jd-input" placeholder="Paste target job description to match skills and calculate alignment..."></textarea>
+            </div>
+
+            <button class="analyze-btn" id="analyze-trigger">
+                <i data-lucide="cpu"></i>
+                <span>Analyze Resume</span>
+            </button>
+        </aside>
+
+        <!-- Main Dashboard Area -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="header">
+                <div class="header-info">
+                    <h2>Resume Audit & Career Alignment</h2>
+                    <p>Unlock insights, optimize for ATS filters, and consult your dedicated coach.</p>
+                </div>
+                <div class="agent-status-card">
+                    <div class="agent-avatar">
+                        <div class="avatar-ring"></div>
+                        <i data-lucide="bot"></i>
+                    </div>
+                    <div class="agent-meta">
+                        <span class="agent-name">Aura Coach</span>
+                        <span class="status-indicator online">Online & ready</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Wizard Steps Progress Bar -->
+            <div class="steps-progress-bar">
+                <div class="step-progress-item active" id="step-1">
+                    <div class="step-num"><i data-lucide="image"></i></div>
+                    <div class="step-label">Upload Resume</div>
+                </div>
+                <div class="step-line" id="line-1"></div>
+                <div class="step-progress-item" id="step-2">
+                    <div class="step-num"><i data-lucide="file-text"></i></div>
+                    <div class="step-label">Specify Target Job</div>
+                </div>
+                <div class="step-line" id="line-2"></div>
+                <div class="step-progress-item" id="step-3">
+                    <div class="step-num"><i data-lucide="award"></i></div>
+                    <div class="step-label">Calculate Score</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Inner Content -->
+            <div class="dashboard-body" style="position: relative;">
+                <!-- Glassmorphic Lock Overlay -->
+                <div class="dashboard-locked-overlay" id="dashboard-lock">
+                    <div class="lock-card">
+                        <div class="lock-icon-glow">
+                            <i data-lucide="lock" id="lock-icon"></i>
+                        </div>
+                        <h3 id="lock-title">Awaiting Resume Upload</h3>
+                        <p id="lock-desc">Please drop your resume image or browse files on the left to start the analysis.</p>
+                        <div class="lock-hint" id="lock-hint">Step 1: Upload</div>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="nav-tabs">
+                    <button class="tab-btn active" data-tab="overview">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Overview</span>
+                    </button>
+                    <button class="tab-btn" data-tab="analysis">
+                        <i data-lucide="shield-alert"></i>
+                        <span>Audit Findings</span>
+                    </button>
+                    <button class="tab-btn" data-tab="skills">
+                        <i data-lucide="shapes"></i>
+                        <span>Keyword Match</span>
+                    </button>
+                    <button class="tab-btn" data-tab="sandbox">
+                        <i data-lucide="file-edit"></i>
+                        <span>Sandbox Editor</span>
+                    </button>
+                    <button class="tab-btn" data-tab="chat">
+                        <i data-lucide="messages-square"></i>
+                        <span>Agent Chat</span>
+                    </button>
+                </nav>
+
+                <!-- Dynamic Tab Content Views -->
+                <div class="tab-content">
+                    
+                    <!-- 1. OVERVIEW VIEW -->
+                    <section class="tab-panel active" id="panel-overview">
+                        <div class="overview-grid">
+                            
+                            <!-- ATS Circle Match Meter -->
+                            <div class="card score-card">
+                                <div class="card-header">
+                                    <h3>ATS Match Score</h3>
+                                    <i data-lucide="help-circle" class="tooltip-icon" title="Evaluates how well your resume matches standard ATS requirements and parsing parameters."></i>
+                                </div>
+                                <div class="gauge-container">
+                                    <svg viewBox="0 0 100 100" class="progress-ring-svg">
+                                        <circle class="progress-ring-bg" cx="50" cy="50" r="42"></circle>
+                                        <circle class="progress-ring-fill" id="ats-gauge" cx="50" cy="50" r="42"></circle>
+                                    </svg>
+                                    <div class="gauge-text">
+                                        <span class="gauge-value" id="ats-score-text">0</span>
+                                        <span class="gauge-max">/100</span>
+                                    </div>
+                                </div>
+                                <div class="score-label-container">
+                                    <span class="score-grade" id="score-grade">N/A</span>
+                                    <span class="score-desc" id="score-feedback-short">Upload or paste a resume to begin</span>
+                                </div>
+                            </div>
+
+                            <!-- Metrics Quick List -->
+                            <div class="card metrics-card">
+                                <h3>Vitals Audit</h3>
+                                <div class="metrics-grid">
+                                    <div class="metric-item">
+                                        <span class="metric-val" id="metric-wordcount">0</span>
+                                        <span class="metric-lbl">Total Words</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-val" id="metric-readtime">0m</span>
+                                        <span class="metric-lbl">Read Time</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-val" id="metric-actions">0</span>
+                                        <span class="metric-lbl">Action Verbs</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-val" id="metric-quantifiables">0</span>
+                                        <span class="metric-lbl">Quantifiable Metrics</span>
+                                    </div>
+                                </div>
+                                <div class="card-footer-info">
+                                    <i data-lucide="info"></i>
+                                    <span>Modern resumes score highest with 450-750 words and strong metric evidence.</span>
+                                </div>
+                            </div>
+
+                            <!-- Structural Completeness Check -->
+                            <div class="card structure-card">
+                                <h3>Section Coverage</h3>
+                                <div class="checklist-container" id="section-checklist">
+                                    <div class="checklist-item" data-section="summary">
+                                        <i data-lucide="circle" class="check-icon"></i>
+                                        <span>Professional Summary</span>
+                                    </div>
+                                    <div class="checklist-item" data-section="experience">
+                                        <i data-lucide="circle" class="check-icon"></i>
+                                        <span>Work Experience</span>
+                                    </div>
+                                    <div class="checklist-item" data-section="skills">
+                                        <i data-lucide="circle" class="check-icon"></i>
+                                        <span>Skills Section</span>
+                                    </div>
+                                    <div class="checklist-item" data-section="education">
+                                        <i data-lucide="circle" class="check-icon"></i>
+                                        <span>Education History</span>
+                                    </div>
+                                    <div class="checklist-item" data-section="projects">
+                                        <i data-lucide="circle" class="check-icon"></i>
+                                        <span>Projects Section</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Details Checker -->
+                            <div class="card contact-card">
+                                <h3>Contact Details Check</h3>
+                                <div class="checklist-container" id="contact-checklist">
+                                    <div class="checklist-item" data-contact="email">
+                                        <i data-lucide="mail"></i>
+                                        <span>Email Address</span>
+                                        <span class="status-pill offline">Missing</span>
+                                    </div>
+                                    <div class="checklist-item" data-contact="phone">
+                                        <i data-lucide="phone"></i>
+                                        <span>Phone Number</span>
+                                        <span class="status-pill offline">Missing</span>
+                                    </div>
+                                    <div class="checklist-item" data-contact="linkedin">
+                                        <i data-lucide="linkedin"></i>
+                                        <span>LinkedIn Profile</span>
+                                        <span class="status-pill offline">Missing</span>
+                                    </div>
+                                    <div class="checklist-item" data-contact="portfolio">
+                                        <i data-lucide="globe"></i>
+                                        <span>Portfolio / GitHub</span>
+                                        <span class="status-pill offline">Missing</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- 2. AUDIT FINDINGS VIEW -->
+                    <section class="tab-panel" id="panel-analysis">
+                        <div class="findings-container">
+                            <div class="findings-summary-bar">
+                                <div class="findings-metric highlight-warning">
+                                    <span class="num" id="findings-count-crit">0</span>
+                                    <span class="lbl">Critical Warnings</span>
+                                </div>
+                                <div class="findings-metric highlight-info">
+                                    <span class="num" id="findings-count-imp">0</span>
+                                    <span class="lbl">Improvement Areas</span>
+                                </div>
+                                <div class="findings-metric highlight-success">
+                                    <span class="num" id="findings-count-str">0</span>
+                                    <span class="lbl">Verified Strengths</span>
+                                </div>
+                            </div>
+
+                            <div class="card findings-card">
+                                <div class="card-header">
+                                    <h3>Detailed Audit Reports</h3>
+                                </div>
+                                <div class="findings-list" id="findings-list">
+                                    <!-- Dynamic contents -->
+                                    <div class="empty-state">
+                                        <i data-lucide="file-search"></i>
+                                        <p>Run a resume analysis to see categorized strengths, improvements, and critical warnings.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 3. KEYWORD MATCH VIEW -->
+                    <section class="tab-panel" id="panel-skills">
+                        <div class="skills-match-grid">
+                            
+                            <!-- Dynamic Venn / Match Gauge -->
+                            <div class="card skills-overview-card">
+                                <h3>Skills Venn Overlap</h3>
+                                <div class="venn-chart-wrapper">
+                                    <div class="venn-circle resume-circle">
+                                        <span>Resume</span>
+                                    </div>
+                                    <div class="venn-circle jd-circle">
+                                        <span>Job Spec</span>
+                                    </div>
+                                    <div class="venn-overlap">
+                                        <span id="venn-match-rate">0%</span>
+                                    </div>
+                                </div>
+                                <div class="skills-stats-desc">
+                                    <p id="skills-match-summary">Upload a resume and job description to compare required keywords.</p>
+                                </div>
+                            </div>
+
+                            <!-- Skills Chips Grid -->
+                            <div class="card skills-detail-card">
+                                <h3>Keyword Analysis</h3>
+                                <div class="skills-lists-container">
+                                    <div class="skills-sublist">
+                                        <h4><i data-lucide="check-circle-2" class="text-success"></i> Matched Skills <span class="count-badge bg-success" id="matched-skills-count">0</span></h4>
+                                        <div class="chips-container" id="matched-skills-chips">
+                                            <span class="no-chips-placeholder">No matching skills found yet</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="skills-sublist">
+                                        <h4><i data-lucide="alert-circle" class="text-warning"></i> Missing Target Skills <span class="count-badge bg-warning" id="missing-skills-count">0</span></h4>
+                                        <div class="chips-container" id="missing-skills-chips">
+                                            <span class="no-chips-placeholder">No target skills analyzed</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- 4. LIVE SANDBOX VIEW -->
+                    <section class="tab-panel" id="panel-sandbox">
+                        <div class="sandbox-container">
+                            <div class="sandbox-info-bar">
+                                <div class="sandbox-instructions">
+                                    <h4><i data-lucide="info"></i> Live Editor Sandbox</h4>
+                                    <p>Tweak details, add missing keywords, format sections, and see your ATS score update in real-time.</p>
+                                </div>
+                                <button class="primary-btn shrink-btn" id="sandbox-reanalyze-btn">
+                                    <i data-lucide="rotate-cw"></i> Re-Analyze
+                                </button>
+                            </div>
+                            <div class="sandbox-layout-wrapper">
+                                <div class="editor-pane">
+                                    <div class="pane-header">
+                                        <span>RESUME SOURCE TEXT</span>
+                                        <span class="char-count" id="sandbox-char-count">0 chars</span>
+                                    </div>
+                                    <textarea id="sandbox-editor-textarea" placeholder="Paste or upload a resume to edit here..."></textarea>
+                                </div>
+                                <div class="score-preview-pane">
+                                    <div class="pane-header">LIVE METRICS PREVIEW</div>
+                                    <div class="preview-metrics-box">
+                                        <div class="mini-metric">
+                                            <span class="mini-metric-lbl">Live Score</span>
+                                            <span class="mini-metric-val font-large highlight-text" id="sandbox-live-score">0</span>
+                                        </div>
+                                        <div class="mini-metric">
+                                            <span class="mini-metric-lbl">Section Health</span>
+                                            <span class="mini-metric-val" id="sandbox-live-sections">0/5</span>
+                                        </div>
+                                        <div class="mini-metric">
+                                            <span class="mini-metric-lbl">Contact info</span>
+                                            <span class="mini-metric-val" id="sandbox-live-contact">0/4</span>
+                                        </div>
+                                        <div class="mini-metric">
+                                            <span class="mini-metric-lbl">Keywords Matched</span>
+                                            <span class="mini-metric-val text-success" id="sandbox-live-keywords">0</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="sandbox-tips-box">
+                                        <h4>Immediate Suggestions</h4>
+                                        <ul class="sandbox-tips-list" id="sandbox-tips-list">
+                                            <li><i data-lucide="arrow-right-circle"></i> Input text to generate instant sandbox suggestions.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 5. AGENT CHAT VIEW -->
+                    <section class="tab-panel" id="panel-chat">
+                        <div class="chat-container">
+                            <div class="chat-layout">
+                                <!-- Agent Info Header -->
+                                <div class="chat-header-sub">
+                                    <div class="avatar-group">
+                                        <div class="chat-avatar">
+                                            <i data-lucide="bot"></i>
+                                            <span class="status-dot"></span>
+                                        </div>
+                                        <div class="avatar-details">
+                                            <h4>Aura Career Agent</h4>
+                                            <p>Knowledgeable in ATS filtering, formatting standards, and interview strategy.</p>
+                                        </div>
+                                    </div>
+                                    <div class="chat-actions">
+                                        <button class="icon-btn" id="chat-clear" title="Clear chat history">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Messages Feed -->
+                                <div class="chat-messages-container" id="chat-feed">
+                                    <!-- Initial bot message -->
+                                    <div class="chat-message bot">
+                                        <div class="message-icon"><i data-lucide="bot"></i></div>
+                                        <div class="message-bubble">
+                                            <p>Hello! I am Aura, your Resume Coach. I've audited your resume parameters.</p>
+                                            <p>Ask me something like:</p>
+                                            <div class="suggested-prompts-container">
+                                                <button class="suggested-prompt-btn" data-prompt="What are the critical warnings on my resume?">"What are the critical warnings on my resume?"</button>
+                                                <button class="suggested-prompt-btn" data-prompt="Which skills are missing from my resume for this job?">"Which skills are missing from my resume?"</button>
+                                                <button class="suggested-prompt-btn" data-prompt="How can I improve my professional experience section?">"How do I improve my work experience?"</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Chat Input -->
+                                <div class="chat-input-bar">
+                                    <input type="text" id="chat-user-input" placeholder="Type a message or click a recommendation above..." />
+                                    <button class="chat-send-btn" id="chat-send-trigger">
+                                        <i data-lucide="send"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
