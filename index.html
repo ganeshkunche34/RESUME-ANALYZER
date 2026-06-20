@@ -1,468 +1,1578 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aura | AI Resume Analyzer & Coach</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Tesseract OCR Library -->
-    <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aura | AI Resume Analyzer & Coach</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Icons & OCR -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #090E1A;
+      --surface:      #111827;
+      --surface-2:    #1C2536;
+      --surface-3:    #243044;
+      --border:       rgba(255,255,255,.07);
+      --border-light: rgba(255,255,255,.12);
+
+      --accent:       #6366F1;
+      --accent-dim:   rgba(99,102,241,.15);
+      --accent-glow:  rgba(99,102,241,.35);
+
+      --success:      #10B981;
+      --success-dim:  rgba(16,185,129,.15);
+      --warning:      #F59E0B;
+      --warning-dim:  rgba(245,158,11,.15);
+      --danger:       #EF4444;
+      --danger-dim:   rgba(239,68,68,.15);
+
+      --text-primary:   #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-muted:     #475569;
+
+      --radius-sm:  6px;
+      --radius-md:  12px;
+      --radius-lg:  18px;
+      --radius-xl:  24px;
+
+      --font-display: 'Outfit', sans-serif;
+      --font-body:    'Inter', sans-serif;
+
+      --sidebar-w: 300px;
+      --transition: .2s ease;
+    }
+
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text-primary); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--surface-3) transparent;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }
+
+    /* Brand */
+    .brand {
+      padding: 22px 20px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .brand::before {
+      content: '';
+      position: absolute;
+      top: -30px; left: -20px;
+      width: 120px; height: 120px;
+      background: var(--accent-glow);
+      border-radius: 50%;
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    .brand-icon-wrap {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), #818CF8);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+    .brand-icon-wrap svg { width: 18px; height: 18px; color: #fff; }
+    .brand-text h1 { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -.4px; }
+    .brand-text span { font-size: 11px; color: var(--text-muted); letter-spacing: .5px; text-transform: uppercase; }
+
+    /* Sidebar sections */
+    .sb-section { padding: 18px 16px; border-bottom: 1px solid var(--border); }
+    .sb-section:last-of-type { border-bottom: none; flex: 1; display: flex; flex-direction: column; }
+    .sb-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .sb-badge {
+      font-size: 9px; padding: 2px 7px; border-radius: 99px;
+      background: var(--accent-dim); color: var(--accent); letter-spacing: .4px;
+    }
+
+    /* Preset grid */
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .preset-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 8px;
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      color: var(--text-secondary);
+      font-family: var(--font-body); font-size: 11px; font-weight: 500;
+      transition: all var(--transition);
+    }
+    .preset-btn svg { width: 16px; height: 16px; }
+    .preset-btn:hover { border-color: var(--accent); color: var(--text-primary); background: var(--surface-3); }
+    .preset-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 1.5px dashed var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 22px 14px;
+      text-align: center;
+      cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .upload-zone:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .upload-zone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+    .upload-zone svg.upload-icon { width: 28px; height: 28px; color: var(--text-muted); margin-bottom: 8px; }
+    .upload-main-text { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+    .upload-sub-text { font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+    .browse-btn {
+      display: inline-block; padding: 7px 16px;
+      background: var(--surface-3); border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: var(--font-body); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all var(--transition);
+    }
+    .browse-btn:hover { background: var(--accent); border-color: var(--accent); }
+
+    /* OCR overlay */
+    .ocr-overlay {
+      position: absolute; inset: 0;
+      background: rgba(9,14,26,.88);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      border-radius: var(--radius-md);
+    }
+    .ocr-overlay.hidden { display: none; }
+    .ocr-scanner-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2s linear infinite;
+    }
+    @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+    .ocr-spinner {
+      width: 28px; height: 28px; border: 2px solid var(--surface-3);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ocr-status-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .ocr-status-percent { font-size: 22px; font-weight: 700; font-family: var(--font-display); color: var(--accent); }
+
+    /* Paste toggle */
+    .paste-toggle-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-body); font-size: 12px;
+      color: var(--accent); text-decoration: underline;
+      margin-top: 10px; padding: 0;
+    }
+    .paste-container { display: none; margin-top: 10px; }
+    .paste-container.visible { display: block; }
+    .paste-container textarea,
+    #jd-input {
+      width: 100%; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-family: var(--font-body); font-size: 12px;
+      padding: 10px 12px; resize: vertical; min-height: 100px;
+      outline: none; transition: border-color var(--transition);
+    }
+    .paste-container textarea:focus, #jd-input:focus { border-color: var(--accent); }
+    #jd-input { min-height: 120px; }
+
+    /* Analyze button */
+    .analyze-btn {
+      margin: 16px; padding: 13px;
+      background: linear-gradient(135deg, var(--accent) 0%, #818CF8 100%);
+      border: none; border-radius: var(--radius-md);
+      color: #fff; font-family: var(--font-display); font-size: 15px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity var(--transition), transform var(--transition);
+      box-shadow: 0 4px 20px var(--accent-glow);
+      letter-spacing: -.2px;
+    }
+    .analyze-btn:hover { opacity: .9; transform: translateY(-1px); }
+    .analyze-btn:active { transform: translateY(0); }
+    .analyze-btn svg { width: 18px; height: 18px; }
+
+    /* ── Main ───────────────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    .topbar {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .topbar-info h2 { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -.3px; }
+    .topbar-info p { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
+    .agent-pill {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; border-radius: 99px;
+      background: var(--surface-2); border: 1px solid var(--border);
+    }
+    .agent-pill-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #818CF8);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .agent-pill-avatar svg { width: 14px; height: 14px; color: #fff; }
+    .agent-pill-avatar::after {
+      content: ''; position: absolute; bottom: 0; right: 0;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success); border: 1.5px solid var(--surface-2);
+    }
+    .agent-pill-info .name { font-size: 12px; font-weight: 600; }
+    .agent-pill-info .status { font-size: 10px; color: var(--success); }
+
+    /* Steps bar */
+    .steps-bar {
+      display: flex; align-items: center; padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      gap: 0; flex-shrink: 0;
+      background: var(--bg);
+    }
+    .step-item { display: flex; align-items: center; gap: 8px; }
+    .step-circle {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface-2); border: 1.5px solid var(--border-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      transition: all var(--transition);
+    }
+    .step-circle svg { width: 13px; height: 13px; }
+    .step-item.active .step-circle { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+    .step-item.done .step-circle { border-color: var(--success); background: var(--success-dim); color: var(--success); }
+    .step-lbl { font-size: 12px; font-weight: 500; color: var(--text-muted); transition: color var(--transition); }
+    .step-item.active .step-lbl { color: var(--text-primary); }
+    .step-item.done .step-lbl { color: var(--success); }
+    .step-connector { flex: 1; height: 1px; background: var(--border); margin: 0 12px; min-width: 30px; }
+    .step-connector.done { background: var(--success); }
+
+    /* Dashboard body */
+    .dashboard-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+    /* Lock overlay */
+    .lock-overlay {
+      position: absolute; inset: 0; z-index: 20;
+      background: rgba(9,14,26,.65);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lock-overlay.hidden { display: none; }
+    .lock-card {
+      background: var(--surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 36px 40px;
+      text-align: center; max-width: 340px;
+    }
+    .lock-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--accent-dim); border: 1.5px solid var(--accent);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .lock-icon svg { width: 24px; height: 24px; color: var(--accent); }
+    .lock-card h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .lock-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
+    .lock-hint { display: inline-block; padding: 5px 14px; border-radius: 99px; background: var(--accent-dim); color: var(--accent); font-size: 11px; font-weight: 600; }
+
+    /* Tabs */
+    .tabs-row {
+      display: flex; gap: 2px; padding: 10px 20px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 14px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-family: var(--font-body); font-size: 13px; font-weight: 500;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color var(--transition), border-color var(--transition);
+    }
+    .tab-btn svg { width: 15px; height: 15px; }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Panels */
+    .panels { flex: 1; overflow: hidden; }
+    .panel { display: none; height: 100%; overflow-y: auto; padding: 24px 28px; scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+    .panel::-webkit-scrollbar { width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }
+    .panel.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+    }
+    .card-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .card-hdr h3 { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+    .card-hdr svg { width: 16px; height: 16px; color: var(--text-muted); cursor: help; }
+
+    /* ── Overview Grid ──────────────────────────────────── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    /* Score ring card */
+    .score-card { display: flex; flex-direction: column; align-items: center; }
+    .ring-wrap { position: relative; width: 140px; height: 140px; margin: 8px 0; }
+    .ring-wrap svg { width: 140px; height: 140px; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--surface-3); stroke-width: 8; }
+    .ring-fill {
+      fill: none; stroke: var(--accent); stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 326;
+      stroke-dashoffset: 326;
+      transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1), stroke .5s;
+    }
+    .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .ring-val { font-family: var(--font-display); font-size: 36px; font-weight: 700; line-height: 1; }
+    .ring-max { font-size: 12px; color: var(--text-muted); }
+    .score-grade { margin-top: 6px; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 99px; background: var(--accent-dim); color: var(--accent); }
+    .score-desc { margin-top: 6px; font-size: 11px; color: var(--text-secondary); text-align: center; max-width: 180px; }
+
+    /* Metrics card */
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .metric-item {
+      background: var(--surface-2); border-radius: var(--radius-md);
+      padding: 14px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .metric-val { font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--text-primary); }
+    .metric-lbl { font-size: 11px; color: var(--text-muted); }
+    .metrics-foot {
+      margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+    }
+    .metrics-foot svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+    /* Checklist cards */
+    .checklist { display: flex; flex-direction: column; gap: 8px; }
+    .check-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius-sm);
+      background: var(--surface-2); font-size: 12px; font-weight: 500;
+      transition: background var(--transition);
+    }
+    .check-item svg.check-ico { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
+    .check-item.found { background: var(--success-dim); }
+    .check-item.found svg.check-ico { color: var(--success); }
+    .check-item .pill {
+      margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 99px; background: var(--danger-dim); color: var(--danger);
+    }
+    .check-item .pill.ok { background: var(--success-dim); color: var(--success); }
+
+    /* ── Findings ───────────────────────────────────────── */
+    .findings-summary {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px;
+    }
+    .findings-stat {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; text-align: center;
+    }
+    .findings-stat .big { font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1; }
+    .findings-stat .lbl { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .findings-stat.crit .big { color: var(--danger); }
+    .findings-stat.impr .big { color: var(--warning); }
+    .findings-stat.good .big { color: var(--success); }
+
+    .findings-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .finding-item {
+      border-radius: var(--radius-md); padding: 14px 16px;
+      display: flex; gap: 12px; align-items: flex-start;
+      font-size: 13px;
+    }
+    .finding-item.crit { background: var(--danger-dim); border-left: 3px solid var(--danger); }
+    .finding-item.impr { background: var(--warning-dim); border-left: 3px solid var(--warning); }
+    .finding-item.good { background: var(--success-dim); border-left: 3px solid var(--success); }
+    .finding-item svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+    .finding-item.crit svg { color: var(--danger); }
+    .finding-item.impr svg { color: var(--warning); }
+    .finding-item.good svg { color: var(--success); }
+    .finding-body h4 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .finding-body p { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+    /* ── Skills ─────────────────────────────────────────── */
+    .skills-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
+
+    .venn-wrap { display: flex; align-items: center; justify-content: center; padding: 20px 0; position: relative; height: 120px; }
+    .venn-c {
+      width: 90px; height: 90px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; position: absolute;
+    }
+    .venn-c.resume { background: rgba(99,102,241,.25); border: 1.5px solid var(--accent); left: 20px; color: var(--accent); }
+    .venn-c.job    { background: rgba(16,185,129,.2);  border: 1.5px solid var(--success); right: 20px; color: var(--success); }
+    .venn-overlap-pct {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-family: var(--font-display); font-size: 20px; font-weight: 700;
+      color: var(--text-primary); text-shadow: 0 0 14px var(--bg);
+      z-index: 1;
+    }
+    .venn-desc { font-size: 12px; color: var(--text-secondary); text-align: center; padding-top: 8px; }
+
+    .skills-lists { display: flex; flex-direction: column; gap: 18px; }
+    .skills-sublist h4 { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .skills-sublist h4 svg { width: 14px; height: 14px; }
+    .cnt-badge { font-size: 10px; padding: 1px 7px; border-radius: 99px; margin-left: 2px; }
+    .cnt-badge.ok { background: var(--success-dim); color: var(--success); }
+    .cnt-badge.warn { background: var(--warning-dim); color: var(--warning); }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip {
+      font-size: 11px; font-weight: 500; padding: 4px 10px;
+      border-radius: 99px; border: 1px solid;
+    }
+    .chip.matched { background: var(--success-dim); border-color: var(--success); color: var(--success); }
+    .chip.missing  { background: var(--warning-dim); border-color: var(--warning); color: var(--warning); }
+    .no-chips { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+    /* ── Sandbox ─────────────────────────────────────────── */
+    .sandbox-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 16px;
+    }
+    .sandbox-bar h4 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+    .sandbox-bar h4 svg { width: 15px; height: 15px; color: var(--accent); }
+    .sandbox-bar p { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .reanalyze-btn {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: var(--accent); border: none; color: #fff;
+      font-family: var(--font-body); font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: opacity var(--transition);
+    }
+    .reanalyze-btn:hover { opacity: .85; }
+    .reanalyze-btn svg { width: 14px; height: 14px; }
+
+    .sandbox-layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; height: calc(100% - 80px); }
+    .editor-pane { display: flex; flex-direction: column; }
+    .pane-hdr {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted);
+      padding: 0 0 8px; display: flex; justify-content: space-between;
+    }
+    .sandbox-textarea {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-md); color: var(--text-primary);
+      font-family: var(--font-body); font-size: 13px; line-height: 1.6;
+      padding: 14px; resize: none; outline: none;
+      transition: border-color var(--transition);
+      min-height: 320px;
+    }
+    .sandbox-textarea:focus { border-color: var(--accent); }
+
+    .preview-pane { display: flex; flex-direction: column; gap: 12px; }
+    .mini-metrics { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .mini-metric { display: flex; flex-direction: column; gap: 3px; }
+    .mini-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .mini-val { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+    .mini-val.accent { color: var(--accent); }
+    .mini-val.success { color: var(--success); }
+
+    .tips-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; flex: 1; }
+    .tips-box h4 { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
+    .tips-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .tips-list li { display: flex; gap: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .tips-list li svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Chat ───────────────────────────────────────────── */
+    .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 230px); max-height: 640px; }
+    .chat-agent-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .chat-agent-info { display: flex; align-items: center; gap: 12px; }
+    .chat-avatar-lg {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #818CF8);
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .chat-avatar-lg svg { width: 18px; height: 18px; color: #fff; }
+    .chat-avatar-lg::after {
+      content: ''; position: absolute; bottom: 1px; right: 1px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--success); border: 1.5px solid var(--surface);
+    }
+    .chat-agent-info h4 { font-size: 14px; font-weight: 600; }
+    .chat-agent-info p { font-size: 11px; color: var(--text-secondary); }
+    .clear-chat-btn {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-muted); transition: all var(--transition);
+    }
+    .clear-chat-btn:hover { border-color: var(--danger); color: var(--danger); }
+    .clear-chat-btn svg { width: 14px; height: 14px; }
+
+    .chat-feed {
+      flex: 1; overflow-y: auto; padding: 16px;
+      background: var(--bg); border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 12px;
+      scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent;
+    }
+    .chat-feed::-webkit-scrollbar { width: 4px; }
+    .chat-feed::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }
+
+    .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .msg.user { flex-direction: row-reverse; }
+    .msg-icon {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), #818CF8);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .msg.user .msg-icon { background: var(--surface-3); }
+    .msg-icon svg { width: 14px; height: 14px; color: #fff; }
+    .bubble {
+      max-width: 75%; padding: 12px 14px; border-radius: var(--radius-md);
+      font-size: 13px; line-height: 1.6; color: var(--text-primary);
+    }
+    .msg.bot .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .msg.user .bubble { background: var(--accent-dim); border: 1px solid rgba(99,102,241,.3); border-top-right-radius: 4px; }
+    .bubble p + p { margin-top: 6px; }
+
+    .suggested-prompts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .suggest-btn {
+      background: var(--surface-2); border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm); padding: 8px 12px;
+      color: var(--accent); font-family: var(--font-body); font-size: 12px;
+      cursor: pointer; text-align: left; transition: all var(--transition);
+    }
+    .suggest-btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+
+    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: blink 1.2s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: .2s; }
+    .typing-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+    .chat-input-row {
+      display: flex; gap: 8px; padding: 12px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .chat-input-row input {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: var(--font-body); font-size: 13px; padding: 9px 14px; outline: none;
+      transition: border-color var(--transition);
+    }
+    .chat-input-row input:focus { border-color: var(--accent); }
+    .send-btn {
+      width: 38px; height: 38px; border-radius: var(--radius-sm);
+      background: var(--accent); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity var(--transition);
+    }
+    .send-btn:hover { opacity: .85; }
+    .send-btn svg { width: 16px; height: 16px; color: #fff; }
+
+    /* Empty state */
+    .empty-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; color: var(--text-muted); }
+    .empty-state svg { width: 36px; height: 36px; }
+    .empty-state p { font-size: 13px; text-align: center; max-width: 260px; line-height: 1.6; }
+
+    /* Utility */
+    .hidden { display: none !important; }
+    .text-success { color: var(--success); }
+    .text-warning { color: var(--warning); }
+    .text-danger  { color: var(--danger); }
+  </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar Navigation / Left Panel: Input -->
-        <aside class="sidebar">
-            <div class="brand">
-                <div class="logo-glow"></div>
-                <i data-lucide="sparkles" class="brand-icon"></i>
-                <div class="brand-text">
-                    <h1>Aura</h1>
-                    <span>AI Career Coach</span>
-                </div>
-            </div>
 
-            <!-- Preset Selector -->
-            <div class="sidebar-section">
-                <h2 class="section-title">Presets <span class="badge">Quick Test</span></h2>
-                <div class="preset-grid">
-                    <button class="preset-btn active" data-preset="frontend">
-                        <i data-lucide="code-2"></i>
-                        <span>Frontend Dev</span>
-                    </button>
-                    <button class="preset-btn" data-preset="pm">
-                        <i data-lucide="briefcase"></i>
-                        <span>Product Manager</span>
-                    </button>
-                    <button class="preset-btn" data-preset="ds">
-                        <i data-lucide="database"></i>
-                        <span>Data Scientist</span>
-                    </button>
-                    <button class="preset-btn" data-preset="ux">
-                        <i data-lucide="palette"></i>
-                        <span>UX Designer</span>
-                    </button>
-                </div>
-            </div>
+<div class="app">
 
-            <!-- Resume Upload/Paste -->
-            <div class="sidebar-section">
-                <h2 class="section-title">Upload Resume</h2>
-                <div class="upload-zone" id="dropzone">
-                    <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" style="display: none;">
-                    <i data-lucide="image" class="upload-icon"></i>
-                    <p class="upload-main-text">Drag & drop resume image</p>
-                    <p class="upload-sub-text">Supports PNG, JPG, JPEG, WEBP</p>
-                    <button class="browse-btn" onclick="document.getElementById('file-input').click()">Browse Images</button>
-                    
-                    <!-- OCR Scanner Progress Overlay -->
-                    <div class="ocr-overlay hidden" id="ocr-overlay">
-                        <div class="ocr-scanner-line"></div>
-                        <div class="ocr-spinner"></div>
-                        <span class="ocr-status-title">Scanning Image...</span>
-                        <span class="ocr-status-percent" id="ocr-percent">0%</span>
-                    </div>
-                </div>
-                <div class="text-input-toggle">
-                    <button id="toggle-paste" class="text-link-btn">Or paste resume text</button>
-                </div>
-                <div class="paste-area-container hidden" id="paste-container">
-                    <textarea id="resume-paste" placeholder="Paste your resume text here..."></textarea>
-                </div>
-            </div>
+  <!-- ─── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="sidebar">
 
-            <!-- Job Description -->
-            <div class="sidebar-section flex-grow">
-                <h2 class="section-title">Target Job Description</h2>
-                <textarea id="jd-input" placeholder="Paste target job description to match skills and calculate alignment..."></textarea>
-            </div>
-
-            <button class="analyze-btn" id="analyze-trigger">
-                <i data-lucide="cpu"></i>
-                <span>Analyze Resume</span>
-            </button>
-        </aside>
-
-        <!-- Main Dashboard Area -->
-        <main class="main-content">
-            <!-- Header bar -->
-            <header class="header">
-                <div class="header-info">
-                    <h2>Resume Audit & Career Alignment</h2>
-                    <p>Unlock insights, optimize for ATS filters, and consult your dedicated coach.</p>
-                </div>
-                <div class="agent-status-card">
-                    <div class="agent-avatar">
-                        <div class="avatar-ring"></div>
-                        <i data-lucide="bot"></i>
-                    </div>
-                    <div class="agent-meta">
-                        <span class="agent-name">Aura Coach</span>
-                        <span class="status-indicator online">Online & ready</span>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Wizard Steps Progress Bar -->
-            <div class="steps-progress-bar">
-                <div class="step-progress-item active" id="step-1">
-                    <div class="step-num"><i data-lucide="image"></i></div>
-                    <div class="step-label">Upload Resume</div>
-                </div>
-                <div class="step-line" id="line-1"></div>
-                <div class="step-progress-item" id="step-2">
-                    <div class="step-num"><i data-lucide="file-text"></i></div>
-                    <div class="step-label">Specify Target Job</div>
-                </div>
-                <div class="step-line" id="line-2"></div>
-                <div class="step-progress-item" id="step-3">
-                    <div class="step-num"><i data-lucide="award"></i></div>
-                    <div class="step-label">Calculate Score</div>
-                </div>
-            </div>
-
-            <!-- Dashboard Inner Content -->
-            <div class="dashboard-body" style="position: relative;">
-                <!-- Glassmorphic Lock Overlay -->
-                <div class="dashboard-locked-overlay" id="dashboard-lock">
-                    <div class="lock-card">
-                        <div class="lock-icon-glow">
-                            <i data-lucide="lock" id="lock-icon"></i>
-                        </div>
-                        <h3 id="lock-title">Awaiting Resume Upload</h3>
-                        <p id="lock-desc">Please drop your resume image or browse files on the left to start the analysis.</p>
-                        <div class="lock-hint" id="lock-hint">Step 1: Upload</div>
-                    </div>
-                </div>
-
-                <!-- Navigation Tabs -->
-                <nav class="nav-tabs">
-                    <button class="tab-btn active" data-tab="overview">
-                        <i data-lucide="layout-dashboard"></i>
-                        <span>Overview</span>
-                    </button>
-                    <button class="tab-btn" data-tab="analysis">
-                        <i data-lucide="shield-alert"></i>
-                        <span>Audit Findings</span>
-                    </button>
-                    <button class="tab-btn" data-tab="skills">
-                        <i data-lucide="shapes"></i>
-                        <span>Keyword Match</span>
-                    </button>
-                    <button class="tab-btn" data-tab="sandbox">
-                        <i data-lucide="file-edit"></i>
-                        <span>Sandbox Editor</span>
-                    </button>
-                    <button class="tab-btn" data-tab="chat">
-                        <i data-lucide="messages-square"></i>
-                        <span>Agent Chat</span>
-                    </button>
-                </nav>
-
-                <!-- Dynamic Tab Content Views -->
-                <div class="tab-content">
-                    
-                    <!-- 1. OVERVIEW VIEW -->
-                    <section class="tab-panel active" id="panel-overview">
-                        <div class="overview-grid">
-                            
-                            <!-- ATS Circle Match Meter -->
-                            <div class="card score-card">
-                                <div class="card-header">
-                                    <h3>ATS Match Score</h3>
-                                    <i data-lucide="help-circle" class="tooltip-icon" title="Evaluates how well your resume matches standard ATS requirements and parsing parameters."></i>
-                                </div>
-                                <div class="gauge-container">
-                                    <svg viewBox="0 0 100 100" class="progress-ring-svg">
-                                        <circle class="progress-ring-bg" cx="50" cy="50" r="42"></circle>
-                                        <circle class="progress-ring-fill" id="ats-gauge" cx="50" cy="50" r="42"></circle>
-                                    </svg>
-                                    <div class="gauge-text">
-                                        <span class="gauge-value" id="ats-score-text">0</span>
-                                        <span class="gauge-max">/100</span>
-                                    </div>
-                                </div>
-                                <div class="score-label-container">
-                                    <span class="score-grade" id="score-grade">N/A</span>
-                                    <span class="score-desc" id="score-feedback-short">Upload or paste a resume to begin</span>
-                                </div>
-                            </div>
-
-                            <!-- Metrics Quick List -->
-                            <div class="card metrics-card">
-                                <h3>Vitals Audit</h3>
-                                <div class="metrics-grid">
-                                    <div class="metric-item">
-                                        <span class="metric-val" id="metric-wordcount">0</span>
-                                        <span class="metric-lbl">Total Words</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-val" id="metric-readtime">0m</span>
-                                        <span class="metric-lbl">Read Time</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-val" id="metric-actions">0</span>
-                                        <span class="metric-lbl">Action Verbs</span>
-                                    </div>
-                                    <div class="metric-item">
-                                        <span class="metric-val" id="metric-quantifiables">0</span>
-                                        <span class="metric-lbl">Quantifiable Metrics</span>
-                                    </div>
-                                </div>
-                                <div class="card-footer-info">
-                                    <i data-lucide="info"></i>
-                                    <span>Modern resumes score highest with 450-750 words and strong metric evidence.</span>
-                                </div>
-                            </div>
-
-                            <!-- Structural Completeness Check -->
-                            <div class="card structure-card">
-                                <h3>Section Coverage</h3>
-                                <div class="checklist-container" id="section-checklist">
-                                    <div class="checklist-item" data-section="summary">
-                                        <i data-lucide="circle" class="check-icon"></i>
-                                        <span>Professional Summary</span>
-                                    </div>
-                                    <div class="checklist-item" data-section="experience">
-                                        <i data-lucide="circle" class="check-icon"></i>
-                                        <span>Work Experience</span>
-                                    </div>
-                                    <div class="checklist-item" data-section="skills">
-                                        <i data-lucide="circle" class="check-icon"></i>
-                                        <span>Skills Section</span>
-                                    </div>
-                                    <div class="checklist-item" data-section="education">
-                                        <i data-lucide="circle" class="check-icon"></i>
-                                        <span>Education History</span>
-                                    </div>
-                                    <div class="checklist-item" data-section="projects">
-                                        <i data-lucide="circle" class="check-icon"></i>
-                                        <span>Projects Section</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Contact Details Checker -->
-                            <div class="card contact-card">
-                                <h3>Contact Details Check</h3>
-                                <div class="checklist-container" id="contact-checklist">
-                                    <div class="checklist-item" data-contact="email">
-                                        <i data-lucide="mail"></i>
-                                        <span>Email Address</span>
-                                        <span class="status-pill offline">Missing</span>
-                                    </div>
-                                    <div class="checklist-item" data-contact="phone">
-                                        <i data-lucide="phone"></i>
-                                        <span>Phone Number</span>
-                                        <span class="status-pill offline">Missing</span>
-                                    </div>
-                                    <div class="checklist-item" data-contact="linkedin">
-                                        <i data-lucide="linkedin"></i>
-                                        <span>LinkedIn Profile</span>
-                                        <span class="status-pill offline">Missing</span>
-                                    </div>
-                                    <div class="checklist-item" data-contact="portfolio">
-                                        <i data-lucide="globe"></i>
-                                        <span>Portfolio / GitHub</span>
-                                        <span class="status-pill offline">Missing</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </section>
-
-                    <!-- 2. AUDIT FINDINGS VIEW -->
-                    <section class="tab-panel" id="panel-analysis">
-                        <div class="findings-container">
-                            <div class="findings-summary-bar">
-                                <div class="findings-metric highlight-warning">
-                                    <span class="num" id="findings-count-crit">0</span>
-                                    <span class="lbl">Critical Warnings</span>
-                                </div>
-                                <div class="findings-metric highlight-info">
-                                    <span class="num" id="findings-count-imp">0</span>
-                                    <span class="lbl">Improvement Areas</span>
-                                </div>
-                                <div class="findings-metric highlight-success">
-                                    <span class="num" id="findings-count-str">0</span>
-                                    <span class="lbl">Verified Strengths</span>
-                                </div>
-                            </div>
-
-                            <div class="card findings-card">
-                                <div class="card-header">
-                                    <h3>Detailed Audit Reports</h3>
-                                </div>
-                                <div class="findings-list" id="findings-list">
-                                    <!-- Dynamic contents -->
-                                    <div class="empty-state">
-                                        <i data-lucide="file-search"></i>
-                                        <p>Run a resume analysis to see categorized strengths, improvements, and critical warnings.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 3. KEYWORD MATCH VIEW -->
-                    <section class="tab-panel" id="panel-skills">
-                        <div class="skills-match-grid">
-                            
-                            <!-- Dynamic Venn / Match Gauge -->
-                            <div class="card skills-overview-card">
-                                <h3>Skills Venn Overlap</h3>
-                                <div class="venn-chart-wrapper">
-                                    <div class="venn-circle resume-circle">
-                                        <span>Resume</span>
-                                    </div>
-                                    <div class="venn-circle jd-circle">
-                                        <span>Job Spec</span>
-                                    </div>
-                                    <div class="venn-overlap">
-                                        <span id="venn-match-rate">0%</span>
-                                    </div>
-                                </div>
-                                <div class="skills-stats-desc">
-                                    <p id="skills-match-summary">Upload a resume and job description to compare required keywords.</p>
-                                </div>
-                            </div>
-
-                            <!-- Skills Chips Grid -->
-                            <div class="card skills-detail-card">
-                                <h3>Keyword Analysis</h3>
-                                <div class="skills-lists-container">
-                                    <div class="skills-sublist">
-                                        <h4><i data-lucide="check-circle-2" class="text-success"></i> Matched Skills <span class="count-badge bg-success" id="matched-skills-count">0</span></h4>
-                                        <div class="chips-container" id="matched-skills-chips">
-                                            <span class="no-chips-placeholder">No matching skills found yet</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="skills-sublist">
-                                        <h4><i data-lucide="alert-circle" class="text-warning"></i> Missing Target Skills <span class="count-badge bg-warning" id="missing-skills-count">0</span></h4>
-                                        <div class="chips-container" id="missing-skills-chips">
-                                            <span class="no-chips-placeholder">No target skills analyzed</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </section>
-
-                    <!-- 4. LIVE SANDBOX VIEW -->
-                    <section class="tab-panel" id="panel-sandbox">
-                        <div class="sandbox-container">
-                            <div class="sandbox-info-bar">
-                                <div class="sandbox-instructions">
-                                    <h4><i data-lucide="info"></i> Live Editor Sandbox</h4>
-                                    <p>Tweak details, add missing keywords, format sections, and see your ATS score update in real-time.</p>
-                                </div>
-                                <button class="primary-btn shrink-btn" id="sandbox-reanalyze-btn">
-                                    <i data-lucide="rotate-cw"></i> Re-Analyze
-                                </button>
-                            </div>
-                            <div class="sandbox-layout-wrapper">
-                                <div class="editor-pane">
-                                    <div class="pane-header">
-                                        <span>RESUME SOURCE TEXT</span>
-                                        <span class="char-count" id="sandbox-char-count">0 chars</span>
-                                    </div>
-                                    <textarea id="sandbox-editor-textarea" placeholder="Paste or upload a resume to edit here..."></textarea>
-                                </div>
-                                <div class="score-preview-pane">
-                                    <div class="pane-header">LIVE METRICS PREVIEW</div>
-                                    <div class="preview-metrics-box">
-                                        <div class="mini-metric">
-                                            <span class="mini-metric-lbl">Live Score</span>
-                                            <span class="mini-metric-val font-large highlight-text" id="sandbox-live-score">0</span>
-                                        </div>
-                                        <div class="mini-metric">
-                                            <span class="mini-metric-lbl">Section Health</span>
-                                            <span class="mini-metric-val" id="sandbox-live-sections">0/5</span>
-                                        </div>
-                                        <div class="mini-metric">
-                                            <span class="mini-metric-lbl">Contact info</span>
-                                            <span class="mini-metric-val" id="sandbox-live-contact">0/4</span>
-                                        </div>
-                                        <div class="mini-metric">
-                                            <span class="mini-metric-lbl">Keywords Matched</span>
-                                            <span class="mini-metric-val text-success" id="sandbox-live-keywords">0</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="sandbox-tips-box">
-                                        <h4>Immediate Suggestions</h4>
-                                        <ul class="sandbox-tips-list" id="sandbox-tips-list">
-                                            <li><i data-lucide="arrow-right-circle"></i> Input text to generate instant sandbox suggestions.</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 5. AGENT CHAT VIEW -->
-                    <section class="tab-panel" id="panel-chat">
-                        <div class="chat-container">
-                            <div class="chat-layout">
-                                <!-- Agent Info Header -->
-                                <div class="chat-header-sub">
-                                    <div class="avatar-group">
-                                        <div class="chat-avatar">
-                                            <i data-lucide="bot"></i>
-                                            <span class="status-dot"></span>
-                                        </div>
-                                        <div class="avatar-details">
-                                            <h4>Aura Career Agent</h4>
-                                            <p>Knowledgeable in ATS filtering, formatting standards, and interview strategy.</p>
-                                        </div>
-                                    </div>
-                                    <div class="chat-actions">
-                                        <button class="icon-btn" id="chat-clear" title="Clear chat history">
-                                            <i data-lucide="trash-2"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Messages Feed -->
-                                <div class="chat-messages-container" id="chat-feed">
-                                    <!-- Initial bot message -->
-                                    <div class="chat-message bot">
-                                        <div class="message-icon"><i data-lucide="bot"></i></div>
-                                        <div class="message-bubble">
-                                            <p>Hello! I am Aura, your Resume Coach. I've audited your resume parameters.</p>
-                                            <p>Ask me something like:</p>
-                                            <div class="suggested-prompts-container">
-                                                <button class="suggested-prompt-btn" data-prompt="What are the critical warnings on my resume?">"What are the critical warnings on my resume?"</button>
-                                                <button class="suggested-prompt-btn" data-prompt="Which skills are missing from my resume for this job?">"Which skills are missing from my resume?"</button>
-                                                <button class="suggested-prompt-btn" data-prompt="How can I improve my professional experience section?">"How do I improve my work experience?"</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Chat Input -->
-                                <div class="chat-input-bar">
-                                    <input type="text" id="chat-user-input" placeholder="Type a message or click a recommendation above..." />
-                                    <button class="chat-send-btn" id="chat-send-trigger">
-                                        <i data-lucide="send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                </div>
-            </div>
-        </main>
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand-icon-wrap">
+        <i data-lucide="sparkles"></i>
+      </div>
+      <div class="brand-text">
+        <h1>Aura</h1>
+        <span>AI Career Coach</span>
+      </div>
     </div>
-    <script src="app.js"></script>
+
+    <!-- Presets -->
+    <div class="sb-section">
+      <div class="sb-label">Presets <span class="sb-badge">Quick Test</span></div>
+      <div class="preset-grid">
+        <button class="preset-btn active" data-preset="frontend">
+          <i data-lucide="code-2"></i><span>Frontend Dev</span>
+        </button>
+        <button class="preset-btn" data-preset="pm">
+          <i data-lucide="briefcase"></i><span>Product Manager</span>
+        </button>
+        <button class="preset-btn" data-preset="ds">
+          <i data-lucide="database"></i><span>Data Scientist</span>
+        </button>
+        <button class="preset-btn" data-preset="ux">
+          <i data-lucide="palette"></i><span>UX Designer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="sb-section">
+      <div class="sb-label">Upload Resume</div>
+      <div class="upload-zone" id="dropzone">
+        <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.webp" style="display:none" />
+        <i data-lucide="image" class="upload-icon"></i>
+        <p class="upload-main-text">Drag & drop resume image</p>
+        <p class="upload-sub-text">PNG · JPG · JPEG · WEBP</p>
+        <button class="browse-btn" id="browse-btn">Browse Images</button>
+
+        <!-- OCR overlay -->
+        <div class="ocr-overlay hidden" id="ocr-overlay">
+          <div class="ocr-scanner-line"></div>
+          <div class="ocr-spinner"></div>
+          <span class="ocr-status-title">Scanning Image…</span>
+          <span class="ocr-status-percent" id="ocr-percent">0%</span>
+        </div>
+      </div>
+
+      <button class="paste-toggle-btn" id="toggle-paste">Or paste resume text</button>
+      <div class="paste-container" id="paste-container">
+        <textarea id="resume-paste" placeholder="Paste your resume text here…" style="min-height:110px;width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-body);font-size:12px;padding:10px 12px;resize:vertical;outline:none;"></textarea>
+      </div>
+    </div>
+
+    <!-- Job description -->
+    <div class="sb-section" style="flex:1;display:flex;flex-direction:column;">
+      <div class="sb-label">Target Job Description</div>
+      <textarea id="jd-input" placeholder="Paste job description to match skills and calculate alignment…" style="flex:1;min-height:120px;"></textarea>
+    </div>
+
+    <button class="analyze-btn" id="analyze-btn">
+      <i data-lucide="cpu"></i>
+      <span>Analyze Resume</span>
+    </button>
+
+  </aside>
+
+  <!-- ─── MAIN ─────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-info">
+        <h2>Resume Audit & Career Alignment</h2>
+        <p>Unlock insights, optimize for ATS filters, and consult your dedicated coach.</p>
+      </div>
+      <div class="agent-pill">
+        <div class="agent-pill-avatar"><i data-lucide="bot"></i></div>
+        <div class="agent-pill-info">
+          <div class="name">Aura Coach</div>
+          <div class="status">Online & ready</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Steps bar -->
+    <div class="steps-bar">
+      <div class="step-item active" id="step-1">
+        <div class="step-circle"><i data-lucide="image"></i></div>
+        <span class="step-lbl">Upload Resume</span>
+      </div>
+      <div class="step-connector" id="conn-1"></div>
+      <div class="step-item" id="step-2">
+        <div class="step-circle"><i data-lucide="file-text"></i></div>
+        <span class="step-lbl">Specify Target Job</span>
+      </div>
+      <div class="step-connector" id="conn-2"></div>
+      <div class="step-item" id="step-3">
+        <div class="step-circle"><i data-lucide="award"></i></div>
+        <span class="step-lbl">Calculate Score</span>
+      </div>
+    </div>
+
+    <!-- Dashboard body -->
+    <div class="dashboard-body">
+
+      <!-- Lock overlay -->
+      <div class="lock-overlay" id="lock-overlay">
+        <div class="lock-card">
+          <div class="lock-icon"><i data-lucide="lock" id="lock-icon"></i></div>
+          <h3 id="lock-title">Awaiting Resume Upload</h3>
+          <p id="lock-desc">Drop your resume image or browse files on the left to start analysis.</p>
+          <div class="lock-hint" id="lock-hint">Step 1: Upload</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-row">
+        <button class="tab-btn active" data-tab="overview">
+          <i data-lucide="layout-dashboard"></i><span>Overview</span>
+        </button>
+        <button class="tab-btn" data-tab="analysis">
+          <i data-lucide="shield-alert"></i><span>Audit Findings</span>
+        </button>
+        <button class="tab-btn" data-tab="skills">
+          <i data-lucide="shapes"></i><span>Keyword Match</span>
+        </button>
+        <button class="tab-btn" data-tab="sandbox">
+          <i data-lucide="file-edit"></i><span>Sandbox Editor</span>
+        </button>
+        <button class="tab-btn" data-tab="chat">
+          <i data-lucide="messages-square"></i><span>Agent Chat</span>
+        </button>
+      </div>
+
+      <!-- Panels -->
+      <div class="panels">
+
+        <!-- 1. OVERVIEW -->
+        <section class="panel active" id="panel-overview">
+          <div class="overview-grid">
+
+            <!-- Score ring -->
+            <div class="card score-card">
+              <div class="card-hdr">
+                <h3>ATS Match Score</h3>
+                <i data-lucide="help-circle" title="How well your resume matches ATS parsing requirements"></i>
+              </div>
+              <div class="ring-wrap">
+                <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                  <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                  <circle class="ring-fill" id="ats-ring" cx="60" cy="60" r="52"/>
+                </svg>
+                <div class="ring-center">
+                  <span class="ring-val" id="ats-score-text">0</span>
+                  <span class="ring-max">/100</span>
+                </div>
+              </div>
+              <span class="score-grade" id="score-grade">N/A</span>
+              <span class="score-desc" id="score-desc">Upload or paste a resume to begin.</span>
+            </div>
+
+            <!-- Vitals -->
+            <div class="card">
+              <div class="card-hdr"><h3>Vitals Audit</h3></div>
+              <div class="metrics-grid">
+                <div class="metric-item">
+                  <span class="metric-val" id="metric-wordcount">—</span>
+                  <span class="metric-lbl">Total Words</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-val" id="metric-readtime">—</span>
+                  <span class="metric-lbl">Read Time</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-val" id="metric-actions">—</span>
+                  <span class="metric-lbl">Action Verbs</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-val" id="metric-quant">—</span>
+                  <span class="metric-lbl">Quantifiable Metrics</span>
+                </div>
+              </div>
+              <div class="metrics-foot">
+                <i data-lucide="info"></i>
+                <span>Modern resumes score highest with 450–750 words and strong metric evidence.</span>
+              </div>
+            </div>
+
+            <!-- Section coverage -->
+            <div class="card">
+              <div class="card-hdr"><h3>Section Coverage</h3></div>
+              <div class="checklist" id="section-checklist">
+                <div class="check-item" data-section="summary">
+                  <i data-lucide="circle" class="check-ico"></i>
+                  <span>Professional Summary</span>
+                </div>
+                <div class="check-item" data-section="experience">
+                  <i data-lucide="circle" class="check-ico"></i>
+                  <span>Work Experience</span>
+                </div>
+                <div class="check-item" data-section="skills">
+                  <i data-lucide="circle" class="check-ico"></i>
+                  <span>Skills Section</span>
+                </div>
+                <div class="check-item" data-section="education">
+                  <i data-lucide="circle" class="check-ico"></i>
+                  <span>Education History</span>
+                </div>
+                <div class="check-item" data-section="projects">
+                  <i data-lucide="circle" class="check-ico"></i>
+                  <span>Projects Section</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact check -->
+            <div class="card">
+              <div class="card-hdr"><h3>Contact Details</h3></div>
+              <div class="checklist" id="contact-checklist">
+                <div class="check-item" data-contact="email">
+                  <i data-lucide="mail" class="check-ico"></i>
+                  <span>Email Address</span>
+                  <span class="pill" id="pill-email">Missing</span>
+                </div>
+                <div class="check-item" data-contact="phone">
+                  <i data-lucide="phone" class="check-ico"></i>
+                  <span>Phone Number</span>
+                  <span class="pill" id="pill-phone">Missing</span>
+                </div>
+                <div class="check-item" data-contact="linkedin">
+                  <i data-lucide="linkedin" class="check-ico"></i>
+                  <span>LinkedIn Profile</span>
+                  <span class="pill" id="pill-linkedin">Missing</span>
+                </div>
+                <div class="check-item" data-contact="portfolio">
+                  <i data-lucide="globe" class="check-ico"></i>
+                  <span>Portfolio / GitHub</span>
+                  <span class="pill" id="pill-portfolio">Missing</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 2. AUDIT FINDINGS -->
+        <section class="panel" id="panel-analysis">
+          <div class="findings-summary">
+            <div class="findings-stat crit">
+              <div class="big" id="cnt-crit">0</div>
+              <div class="lbl">Critical Warnings</div>
+            </div>
+            <div class="findings-stat impr">
+              <div class="big" id="cnt-impr">0</div>
+              <div class="lbl">Improvement Areas</div>
+            </div>
+            <div class="findings-stat good">
+              <div class="big" id="cnt-good">0</div>
+              <div class="lbl">Verified Strengths</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><h3>Detailed Audit Report</h3></div>
+            <div class="findings-list" id="findings-list">
+              <div class="empty-state">
+                <i data-lucide="file-search"></i>
+                <p>Run a resume analysis to see categorized strengths, improvements, and critical warnings.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. KEYWORD MATCH -->
+        <section class="panel" id="panel-skills">
+          <div class="skills-grid">
+
+            <div class="card">
+              <div class="card-hdr"><h3>Skills Venn Overlap</h3></div>
+              <div class="venn-wrap">
+                <div class="venn-c resume"><span>Resume</span></div>
+                <div class="venn-c job"><span>Job Spec</span></div>
+                <div class="venn-overlap-pct" id="venn-pct">0%</div>
+              </div>
+              <p class="venn-desc" id="venn-desc">Upload a resume and job description to compare keywords.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-hdr"><h3>Keyword Analysis</h3></div>
+              <div class="skills-lists">
+                <div class="skills-sublist">
+                  <h4>
+                    <i data-lucide="check-circle-2" class="text-success"></i>
+                    Matched Skills
+                    <span class="cnt-badge ok" id="matched-cnt">0</span>
+                  </h4>
+                  <div class="chips" id="matched-chips">
+                    <span class="no-chips">No matching skills found yet</span>
+                  </div>
+                </div>
+                <div class="skills-sublist">
+                  <h4>
+                    <i data-lucide="alert-circle" class="text-warning"></i>
+                    Missing Target Skills
+                    <span class="cnt-badge warn" id="missing-cnt">0</span>
+                  </h4>
+                  <div class="chips" id="missing-chips">
+                    <span class="no-chips">No target skills analyzed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 4. SANDBOX -->
+        <section class="panel" id="panel-sandbox">
+          <div class="sandbox-bar">
+            <div>
+              <h4><i data-lucide="info"></i> Live Editor Sandbox</h4>
+              <p>Tweak details, add keywords, format sections, and see metrics update in real-time.</p>
+            </div>
+            <button class="reanalyze-btn" id="reanalyze-btn">
+              <i data-lucide="rotate-cw"></i> Re-Analyze
+            </button>
+          </div>
+          <div class="sandbox-layout">
+            <div class="editor-pane">
+              <div class="pane-hdr">
+                <span>Resume Source Text</span>
+                <span id="char-count">0 chars</span>
+              </div>
+              <textarea class="sandbox-textarea" id="sandbox-textarea" placeholder="Paste or upload a resume to edit here…"></textarea>
+            </div>
+            <div class="preview-pane">
+              <div class="pane-hdr"><span>Live Metrics</span></div>
+              <div class="mini-metrics">
+                <div class="mini-metric">
+                  <span class="mini-lbl">Score</span>
+                  <span class="mini-val accent" id="sb-score">0</span>
+                </div>
+                <div class="mini-metric">
+                  <span class="mini-lbl">Sections</span>
+                  <span class="mini-val" id="sb-sections">0/5</span>
+                </div>
+                <div class="mini-metric">
+                  <span class="mini-lbl">Contact</span>
+                  <span class="mini-val" id="sb-contact">0/4</span>
+                </div>
+                <div class="mini-metric">
+                  <span class="mini-lbl">Keywords</span>
+                  <span class="mini-val success" id="sb-keywords">0</span>
+                </div>
+              </div>
+              <div class="tips-box">
+                <h4>Immediate Suggestions</h4>
+                <ul class="tips-list" id="sb-tips">
+                  <li><i data-lucide="arrow-right-circle"></i> Input text to generate instant suggestions.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. CHAT -->
+        <section class="panel" id="panel-chat">
+          <div class="chat-wrap">
+            <div class="chat-agent-bar">
+              <div class="chat-agent-info">
+                <div class="chat-avatar-lg"><i data-lucide="bot"></i></div>
+                <div>
+                  <h4>Aura Career Agent</h4>
+                  <p>ATS filtering · formatting · interview strategy</p>
+                </div>
+              </div>
+              <button class="clear-chat-btn" id="clear-chat" title="Clear chat">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+
+            <div class="chat-feed" id="chat-feed">
+              <div class="msg bot">
+                <div class="msg-icon"><i data-lucide="bot"></i></div>
+                <div class="bubble">
+                  <p>Hello! I'm Aura, your AI resume coach. I've reviewed your resume parameters.</p>
+                  <p>Ask me something like:</p>
+                  <div class="suggested-prompts">
+                    <button class="suggest-btn" data-prompt="What are the critical warnings on my resume?">"What are the critical warnings?"</button>
+                    <button class="suggest-btn" data-prompt="Which skills are missing from my resume for this job?">"Which skills am I missing?"</button>
+                    <button class="suggest-btn" data-prompt="How can I improve my professional experience section?">"How do I improve my experience section?"</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-input-row">
+              <input type="text" id="chat-input" placeholder="Type a question or click a suggestion above…" />
+              <button class="send-btn" id="send-btn"><i data-lucide="send"></i></button>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /panels -->
+    </div><!-- /dashboard-body -->
+  </main>
+</div>
+
+<script>
+/* ── Lucide init ─────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  initApp();
+});
+
+/* ── State ───────────────────────────────────────────────── */
+let resumeText = '';
+let analysisData = null;
+
+/* ── Preset data ─────────────────────────────────────────── */
+const PRESETS = {
+  frontend: {
+    resume: `John Smith\njohn@email.com | (555) 012-3456 | linkedin.com/in/johnsmith | github.com/johnsmith\n\nPROFESSIONAL SUMMARY\nFront-end engineer with 5 years building responsive, accessible web applications using React and TypeScript. Passionate about performance optimization and clean component architecture.\n\nSKILLS\nReact, TypeScript, JavaScript, HTML5, CSS3, Next.js, Redux, Webpack, Jest, Cypress, Git, REST APIs, GraphQL, Figma\n\nEXPERIENCE\nSenior Front-End Engineer — Acme Corp (2021–Present)\n• Led migration from legacy jQuery to React 18, reducing bundle size by 40%\n• Built reusable design-system library adopted by 6 product teams\n• Improved Lighthouse performance score from 62 to 94 across core pages\n\nFront-End Developer — Startup XYZ (2019–2021)\n• Delivered 12+ feature releases in an Agile sprint cycle\n• Reduced page load time by 35% through code-splitting and lazy loading\n\nEDUCATION\nB.Sc. Computer Science — State University, 2019\n\nPROJECTS\nOpen-source UI kit with 1,200+ GitHub stars`,
+    jd: `We're looking for a Senior Front-End Engineer skilled in React, TypeScript, Next.js, GraphQL, and modern CSS. Experience with testing frameworks like Jest and Cypress required. Strong communication and Agile experience a plus.`
+  },
+  pm: {
+    resume: `Sarah Lee\nsarah@email.com | (555) 987-6543 | linkedin.com/in/sarahlee\n\nPROFESSIONAL SUMMARY\nProduct Manager with 6 years driving 0-to-1 and growth-stage products. Proven track record of shipping user-centric features that increased retention by 25%+.\n\nSKILLS\nProduct strategy, Roadmapping, A/B testing, SQL, Jira, Figma, OKRs, Stakeholder management, User research, Agile, Data analysis\n\nEXPERIENCE\nSenior Product Manager — TechCo (2020–Present)\n• Owned core checkout flow; reduced abandonment rate by 18%\n• Launched subscription tier generating $2.4M ARR in year one\n\nProduct Manager — FinStart (2018–2020)\n• Shipped mobile onboarding redesign; improved activation by 30%\n\nEDUCATION\nMBA — Business School, 2018\n\nPROJECTS\nInternal analytics dashboard adopted company-wide`,
+    jd: `Seeking a Senior PM with experience in SaaS, roadmapping, A/B testing, SQL, user research, and Agile delivery. Must be data-driven with strong stakeholder management skills.`
+  },
+  ds: {
+    resume: `Raj Patel\nraj@email.com | (555) 246-8013 | linkedin.com/in/rajpatel | github.com/rajpatel\n\nPROFESSIONAL SUMMARY\nData Scientist with 4 years specializing in ML pipelines and NLP. Built models that improved recommendation CTR by 22% and reduced churn prediction error by 15%.\n\nSKILLS\nPython, R, SQL, scikit-learn, TensorFlow, PyTorch, Pandas, NumPy, Spark, Tableau, dbt, MLflow, Statistics\n\nEXPERIENCE\nData Scientist — DataDriven Inc (2021–Present)\n• Built real-time fraud detection model; saved $1.2M annually\n• Developed NLP classifier for support ticket routing; accuracy 91%\n\nData Analyst — Analytics Co (2019–2021)\n• Created executive dashboards used by 50+ stakeholders weekly\n\nEDUCATION\nM.Sc. Data Science — Tech University, 2019\n\nPROJECTS\nKaggle Grandmaster — top 100 globally`,
+    jd: `Hiring a Data Scientist proficient in Python, SQL, machine learning, TensorFlow or PyTorch, and statistical modeling. Experience with MLflow, dbt, and Spark preferred.`
+  },
+  ux: {
+    resume: `Maya Chen\nmaya@email.com | (555) 135-7924 | linkedin.com/in/mayachen | portfolio: mayachen.design\n\nPROFESSIONAL SUMMARY\nUX Designer with 5 years crafting intuitive digital experiences. Led end-to-end design for products used by 2M+ users across mobile and web platforms.\n\nSKILLS\nFigma, Sketch, Adobe XD, Prototyping, User research, Usability testing, Information architecture, Design systems, Accessibility, HTML/CSS basics\n\nEXPERIENCE\nSenior UX Designer — ProductCo (2021–Present)\n• Redesigned onboarding flow; reduced drop-off by 28%\n• Built and maintained design system across 4 product lines\n\nUX Designer — Agency (2019–2021)\n• Delivered 20+ client projects from discovery to handoff\n\nEDUCATION\nB.F.A. Interaction Design — Design College, 2019\n\nPROJECTS\nMentorship platform — personal project used by 500+ students`,
+    jd: `Looking for a UX Designer experienced in Figma, design systems, user research, usability testing, prototyping, and accessibility. Portfolio required.`
+  }
+};
+
+/* ── Action verbs & patterns ──────────────────────────────── */
+const ACTION_VERBS = ['led','built','developed','created','designed','managed','delivered','improved','increased','reduced','launched','implemented','optimized','collaborated','architected','drove','spearheaded','owned','shipped','mentored','deployed','integrated','streamlined','automated','analyzed','researched','produced','established','achieved','grew','saved'];
+const QUANT_REGEX  = /\b\d+[\+%xX]?\b.*?(increase|decrease|reduce|improve|save|generate|grow|rise|drop|boost)/gi;
+
+/* ── Helpers ─────────────────────────────────────────────── */
+function countActionVerbs(text) {
+  const lower = text.toLowerCase();
+  return ACTION_VERBS.filter(v => new RegExp(`\\b${v}`, 'i').test(lower)).length;
+}
+function countQuantifiables(text) {
+  return (text.match(QUANT_REGEX) || []).length;
+}
+function extractSections(text) {
+  const lower = text.toLowerCase();
+  return {
+    summary:    /summary|objective|profile/.test(lower),
+    experience: /experience|employment|work history/.test(lower),
+    skills:     /skills|technologies|tools|competencies/.test(lower),
+    education:  /education|degree|university|college/.test(lower),
+    projects:   /projects|portfolio|open.?source/.test(lower)
+  };
+}
+function extractContact(text) {
+  return {
+    email:     /.+@.+\..+/.test(text),
+    phone:     /(\+?\d[\d\s\-().]{6,})/.test(text),
+    linkedin:  /linkedin\.com/i.test(text),
+    portfolio: /github\.com|portfolio|\.design|\.io\/|\.dev\//i.test(text)
+  };
+}
+function extractKeywords(text) {
+  const common = ['and','the','to','of','in','a','an','with','for','on','at','is','was','are','were','be','been','by','this','that','from','or','as','have','had','has'];
+  return [...new Set(
+    text.toLowerCase().match(/\b[a-z][a-z0-9#+.]{2,}\b/g) || []
+  )].filter(w => !common.includes(w));
+}
+
+/* ── Score calculation ─────────────────────────────────────── */
+function calcScore(text, jd) {
+  if (!text) return 0;
+  const words   = text.trim().split(/\s+/).length;
+  const sections = extractSections(text);
+  const contact  = extractContact(text);
+  const actions  = countActionVerbs(text);
+  const quants   = countQuantifiables(text);
+
+  const sectionCount = Object.values(sections).filter(Boolean).length;
+  const contactCount = Object.values(contact).filter(Boolean).length;
+
+  let score = 0;
+  // Word count (ideal 450-750)
+  if (words >= 450 && words <= 750) score += 20;
+  else if (words >= 300 && words < 450) score += 12;
+  else if (words > 750 && words <= 1000) score += 12;
+  else score += 5;
+
+  // Sections (5 pts each, max 25)
+  score += Math.min(sectionCount * 5, 25);
+
+  // Contact (4 pts each, max 16)
+  score += Math.min(contactCount * 4, 16);
+
+  // Action verbs (1 pt each, max 15)
+  score += Math.min(actions, 15);
+
+  // Quantifiable metrics (2 pts each, max 12)
+  score += Math.min(quants * 2, 12);
+
+  // JD keyword match bonus (max 12)
+  if (jd) {
+    const jdKeys = extractKeywords(jd);
+    const resKeys = extractKeywords(text);
+    const matched = jdKeys.filter(k => resKeys.includes(k));
+    const rate = jdKeys.length ? matched.length / jdKeys.length : 0;
+    score += Math.round(rate * 12);
+  }
+
+  return Math.min(Math.round(score), 100);
+}
+
+/* ── Grade labels ─────────────────────────────────────────── */
+function getGrade(score) {
+  if (score >= 85) return { grade: 'Excellent', desc: 'Your resume is highly optimized for ATS.', color: 'var(--success)' };
+  if (score >= 70) return { grade: 'Good', desc: 'Strong resume with minor improvements available.', color: '#22D3EE' };
+  if (score >= 55) return { grade: 'Fair', desc: 'Several improvements could boost your score significantly.', color: 'var(--warning)' };
+  return { grade: 'Needs Work', desc: 'Major gaps detected. Review audit findings for guidance.', color: 'var(--danger)' };
+}
+
+/* ── Ring animation ───────────────────────────────────────── */
+function animateRing(score) {
+  const ring = document.getElementById('ats-ring');
+  const circumference = 2 * Math.PI * 52; // r=52
+  const offset = circumference - (score / 100) * circumference;
+  ring.style.strokeDasharray  = circumference;
+  ring.style.strokeDashoffset = circumference;
+  requestAnimationFrame(() => {
+    ring.style.transition = 'stroke-dashoffset 1s cubic-bezier(.4,0,.2,1), stroke .5s';
+    ring.style.strokeDashoffset = offset;
+    const { color } = getGrade(score);
+    ring.style.stroke = color;
+  });
+
+  // Animate number
+  const el = document.getElementById('ats-score-text');
+  let cur = 0;
+  const step = () => {
+    cur = Math.min(cur + Math.ceil(score / 40), score);
+    el.textContent = cur;
+    if (cur < score) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ── Update overview UI ───────────────────────────────────── */
+function updateOverview(text, score, sections, contact) {
+  animateRing(score);
+  const { grade, desc, color } = getGrade(score);
+  const gradeEl = document.getElementById('score-grade');
+  gradeEl.textContent = grade;
+  gradeEl.style.color = color;
+  gradeEl.style.background = color + '22';
+  document.getElementById('score-desc').textContent = desc;
+
+  const words = text.trim().split(/\s+/).length;
+  document.getElementById('metric-wordcount').textContent = words.toLocaleString();
+  document.getElementById('metric-readtime').textContent  = Math.ceil(words / 200) + 'm';
+  document.getElementById('metric-actions').textContent   = countActionVerbs(text);
+  document.getElementById('metric-quant').textContent     = countQuantifiables(text);
+
+  // Sections
+  document.querySelectorAll('#section-checklist .check-item').forEach(el => {
+    const key = el.dataset.section;
+    const found = sections[key];
+    el.classList.toggle('found', found);
+    const icon = el.querySelector('.check-ico');
+    icon.setAttribute('data-lucide', found ? 'check-circle-2' : 'circle');
+  });
+
+  // Contact
+  const ids = ['email','phone','linkedin','portfolio'];
+  ids.forEach(id => {
+    const el = document.querySelector(`[data-contact="${id}"]`);
+    const pill = document.getElementById('pill-' + id);
+    const found = contact[id];
+    el.classList.toggle('found', found);
+    pill.textContent = found ? 'Found' : 'Missing';
+    pill.classList.toggle('ok', found);
+  });
+
+  lucide.createIcons();
+}
+
+/* ── Build findings ───────────────────────────────────────── */
+function buildFindings(text, sections, contact) {
+  const findings = [];
+  const words = text.trim().split(/\s+/).length;
+
+  // Critical
+  if (!contact.email)       findings.push({ type:'crit', title:'Missing Email', body:'No email address detected. This is critical for recruiter follow-up.' });
+  if (!sections.experience) findings.push({ type:'crit', title:'No Work Experience Section', body:'ATS systems expect a clearly labeled Experience or Employment section.' });
+  if (words < 200)          findings.push({ type:'crit', title:'Resume Too Short', body:`Only ${words} words detected. ATS engines may disqualify resumes under 300 words.` });
+
+  // Improvements
+  if (!sections.summary)  findings.push({ type:'impr', title:'Add a Professional Summary', body:'A 3–4 sentence summary at the top improves ATS ranking and recruiter engagement.' });
+  if (!sections.projects) findings.push({ type:'impr', title:'Consider Adding Projects', body:'Especially valuable for technical roles — highlights applied skills.' });
+  if (!contact.linkedin)  findings.push({ type:'impr', title:'Add LinkedIn Profile URL', body:'Recruiters verify candidates on LinkedIn; including it improves credibility.' });
+  if (countActionVerbs(text) < 5)      findings.push({ type:'impr', title:'Use More Action Verbs', body:'Start bullet points with strong verbs like "Led", "Built", "Optimized" to convey impact.' });
+  if (countQuantifiables(text) < 3)    findings.push({ type:'impr', title:'Add Quantifiable Metrics', body:'Numbers prove impact. E.g., "Increased sales by 30%" is far stronger than "Improved sales".' });
+  if (words > 900)         findings.push({ type:'impr', title:'Resume May Be Too Long', body:`${words} words exceeds the recommended 750. Consider trimming older or less relevant roles.` });
+
+  // Strengths
+  if (sections.summary)    findings.push({ type:'good', title:'Professional Summary Present', body:'Great — recruiters spend the first 6 seconds on your summary.' });
+  if (sections.experience) findings.push({ type:'good', title:'Work Experience Detected', body:'Experience section is clearly structured and ATS-parseable.' });
+  if (sections.skills)     findings.push({ type:'good', title:'Skills Section Found', body:'Keyword-rich skills sections significantly boost ATS match scores.' });
+  if (contact.email)       findings.push({ type:'good', title:'Email Contact Present', body:'Email found and formatted correctly.' });
+  if (contact.portfolio)   findings.push({ type:'good', title:'Portfolio / GitHub Linked', body:'Technical portfolio increases credibility for developer roles.' });
+
+  return findings;
+}
+
+/* ── Render findings ─────────────────────────────────────── */
+const FINDING_ICON = { crit: 'alert-triangle', impr: 'alert-circle', good: 'check-circle-2' };
+function renderFindings(findings) {
+  const list = document.getElementById('findings-list');
+  const crit = findings.filter(f => f.type === 'crit');
+  const impr = findings.filter(f => f.type === 'impr');
+  const good = findings.filter(f => f.type === 'good');
+
+  document.getElementById('cnt-crit').textContent = crit.length;
+  document.getElementById('cnt-impr').textContent = impr.length;
+  document.getElementById('cnt-good').textContent = good.length;
+
+  if (!findings.length) { list.innerHTML = '<div class="empty-state"><i data-lucide="file-search"></i><p>No findings generated.</p></div>'; lucide.createIcons(); return; }
+
+  list.innerHTML = [...crit, ...impr, ...good].map(f => `
+    <div class="finding-item ${f.type}">
+      <i data-lucide="${FINDING_ICON[f.type]}"></i>
+      <div class="finding-body"><h4>${f.title}</h4><p>${f.body}</p></div>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+/* ── Render skills ────────────────────────────────────────── */
+function renderSkills(resumeText, jdText) {
+  if (!jdText) {
+    document.getElementById('venn-pct').textContent = '—';
+    document.getElementById('venn-desc').textContent = 'Provide a job description to compare keywords.';
+    return;
+  }
+  const jdKeys  = extractKeywords(jdText);
+  const resKeys = extractKeywords(resumeText);
+  const matched = jdKeys.filter(k => resKeys.includes(k));
+  const missing = jdKeys.filter(k => !resKeys.includes(k)).slice(0,30);
+  const rate    = jdKeys.length ? Math.round((matched.length / jdKeys.length) * 100) : 0;
+
+  document.getElementById('venn-pct').textContent  = rate + '%';
+  document.getElementById('venn-desc').textContent = `${matched.length} of ${jdKeys.length} job keywords found in your resume.`;
+  document.getElementById('matched-cnt').textContent = matched.length;
+  document.getElementById('missing-cnt').textContent = missing.length;
+
+  const render = (id, items, cls) => {
+    const el = document.getElementById(id);
+    el.innerHTML = items.length
+      ? items.slice(0,30).map(k => `<span class="chip ${cls}">${k}</span>`).join('')
+      : '<span class="no-chips">None</span>';
+  };
+  render('matched-chips', matched, 'matched');
+  render('missing-chips', missing, 'missing');
+}
+
+/* ── Sandbox ─────────────────────────────────────────────── */
+function updateSandbox(text) {
+  const jd = document.getElementById('jd-input').value;
+  document.getElementById('char-count').textContent = text.length + ' chars';
+  const score    = calcScore(text, jd);
+  const sections = extractSections(text);
+  const contact  = extractContact(text);
+  const jdKeys   = jd ? extractKeywords(jd) : [];
+  const resKeys  = extractKeywords(text);
+  const matched  = jdKeys.filter(k => resKeys.includes(k));
+
+  document.getElementById('sb-score').textContent    = score;
+  document.getElementById('sb-sections').textContent = Object.values(sections).filter(Boolean).length + '/5';
+  document.getElementById('sb-contact').textContent  = Object.values(contact).filter(Boolean).length + '/4';
+  document.getElementById('sb-keywords').textContent = matched.length;
+
+  // Tips
+  const tips = [];
+  if (!sections.summary)   tips.push('Add a Professional Summary section.');
+  if (!contact.email)      tips.push('Include a visible email address.');
+  if (!contact.linkedin)   tips.push('Add your LinkedIn profile URL.');
+  if (countActionVerbs(text) < 5) tips.push('Use more strong action verbs (Led, Built, Delivered…).');
+  if (countQuantifiables(text) < 3) tips.push('Quantify achievements with numbers and percentages.');
+  if (jd && matched.length < 5)   tips.push('Add more keywords from the job description.');
+  if (!tips.length) tips.push('Great — no immediate issues detected!');
+
+  document.getElementById('sb-tips').innerHTML = tips
+    .map(t => `<li><i data-lucide="arrow-right-circle"></i>${t}</li>`).join('');
+  lucide.createIcons();
+}
+
+/* ── Main analysis ────────────────────────────────────────── */
+function runAnalysis() {
+  const jd   = document.getElementById('jd-input').value.trim();
+  if (!resumeText) { alert('Please upload or paste your resume first.'); return; }
+
+  const score    = calcScore(resumeText, jd);
+  const sections = extractSections(resumeText);
+  const contact  = extractContact(resumeText);
+  const findings = buildFindings(resumeText, sections, contact);
+
+  analysisData = { score, sections, contact, findings, jd };
+
+  // Lock
+  document.getElementById('lock-overlay').classList.add('hidden');
+
+  // Steps
+  setStep(jd ? 3 : 2);
+
+  // Update panels
+  updateOverview(resumeText, score, sections, contact);
+  renderFindings(findings);
+  renderSkills(resumeText, jd);
+
+  // Sync sandbox
+  document.getElementById('sandbox-textarea').value = resumeText;
+  updateSandbox(resumeText);
+}
+
+/* ── Steps ─────────────────────────────────────────────────── */
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step-' + i);
+    el.classList.toggle('done', i < n);
+    el.classList.toggle('active', i === n);
+  }
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('conn-' + i).classList.toggle('done', i < n);
+  }
+}
+
+/* ── Tab switching ─────────────────────────────────────────── */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+}
+
+/* ── Chat ───────────────────────────────────────────────────── */
+function appendMsg(role, html) {
+  const feed = document.getElementById('chat-feed');
+  const div  = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="msg-icon"><i data-lucide="${role === 'bot' ? 'bot' : 'user'}"></i></div>
+    <div class="bubble">${html}</div>`;
+  feed.appendChild(div);
+  lucide.createIcons();
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function appendTyping() {
+  const feed = document.getElementById('chat-feed');
+  const div  = document.createElement('div');
+  div.className = 'msg bot'; div.id = 'typing-msg';
+  div.innerHTML = `<div class="msg-icon"><i data-lucide="bot"></i></div><div class="bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  feed.appendChild(div);
+  lucide.createIcons();
+  feed.scrollTop = feed.scrollHeight;
+  return div;
+}
+
+async function sendChat(message) {
+  if (!message.trim()) return;
+  appendMsg('user', `<p>${message}</p>`);
+  const typing = appendTyping();
+
+  // Build context for the API
+  const context = analysisData
+    ? `Resume score: ${analysisData.score}/100. ` +
+      `Sections: ${JSON.stringify(analysisData.sections)}. ` +
+      `Contact: ${JSON.stringify(analysisData.contact)}. ` +
+      `Findings (${analysisData.findings.length}): ${analysisData.findings.map(f => f.title).join(', ')}. ` +
+      `Job description provided: ${analysisData.jd ? 'Yes' : 'No'}.`
+    : 'No resume has been analyzed yet.';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `You are Aura, an expert AI resume coach specializing in ATS optimization, resume writing, and career strategy. 
+Context: ${context}
+Keep answers concise (3–5 sentences max), practical, and actionable. 
+Use plain text — no markdown, asterisks, or bullet symbols.`,
+        messages: [{ role: 'user', content: message }]
+      })
+    });
+
+    const data = await res.json();
+    typing.remove();
+    const reply = data.content?.find(b => b.type === 'text')?.text || 'Sorry, I could not process that.';
+    appendMsg('bot', `<p>${reply}</p>`);
+  } catch {
+    typing.remove();
+    appendMsg('bot', '<p>Connection error. Please check your network and try again.</p>');
+  }
+}
+
+/* ── OCR ──────────────────────────────────────────────────── */
+function runOCR(file) {
+  const overlay = document.getElementById('ocr-overlay');
+  const pct     = document.getElementById('ocr-percent');
+  overlay.classList.remove('hidden');
+
+  Tesseract.recognize(file, 'eng', {
+    logger: m => {
+      if (m.status === 'recognizing text') {
+        const p = Math.round(m.progress * 100);
+        pct.textContent = p + '%';
+      }
+    }
+  }).then(({ data: { text } }) => {
+    overlay.classList.add('hidden');
+    resumeText = text.trim();
+    if (resumeText) {
+      document.getElementById('lock-overlay').classList.remove('hidden');
+      document.getElementById('lock-title').textContent = 'Resume Scanned — Ready';
+      document.getElementById('lock-desc').textContent  = 'Click "Analyze Resume" to run the full audit.';
+      document.getElementById('lock-hint').textContent  = 'Step 2: Analyze';
+      setStep(2);
+    }
+  }).catch(() => {
+    overlay.classList.add('hidden');
+    alert('OCR failed. Try a clearer image.');
+  });
+}
+
+/* ── Init ────────────────────────────────────────────────────── */
+function initApp() {
+  /* Preset buttons */
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const preset = PRESETS[btn.dataset.preset];
+      if (preset) {
+        resumeText = preset.resume;
+        document.getElementById('jd-input').value = preset.jd;
+        document.getElementById('paste-container').classList.add('visible');
+        document.getElementById('resume-paste').value = preset.resume;
+        document.getElementById('lock-title').textContent = 'Preset Loaded — Ready';
+        document.getElementById('lock-desc').textContent  = 'Click "Analyze Resume" to run the full audit.';
+        document.getElementById('lock-hint').textContent  = 'Step 2: Analyze';
+        setStep(2);
+      }
+    });
+  });
+
+  /* Browse button */
+  document.getElementById('browse-btn').addEventListener('click', () => {
+    document.getElementById('file-input').click();
+  });
+
+  /* File input */
+  document.getElementById('file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) runOCR(file);
+  });
+
+  /* Drag & drop */
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) runOCR(file);
+  });
+
+  /* Paste toggle */
+  document.getElementById('toggle-paste').addEventListener('click', () => {
+    document.getElementById('paste-container').classList.toggle('visible');
+  });
+
+  /* Paste textarea */
+  document.getElementById('resume-paste').addEventListener('input', e => {
+    resumeText = e.target.value.trim();
+    if (resumeText) {
+      document.getElementById('lock-title').textContent = 'Text Pasted — Ready';
+      document.getElementById('lock-desc').textContent  = 'Click "Analyze Resume" to run the full audit.';
+      document.getElementById('lock-hint').textContent  = 'Step 2: Analyze';
+      setStep(2);
+    }
+  });
+
+  /* Analyze button */
+  document.getElementById('analyze-btn').addEventListener('click', runAnalysis);
+
+  /* Tabs */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  /* Sandbox editor */
+  document.getElementById('sandbox-textarea').addEventListener('input', e => {
+    updateSandbox(e.target.value);
+  });
+  document.getElementById('reanalyze-btn').addEventListener('click', () => {
+    resumeText = document.getElementById('sandbox-textarea').value;
+    runAnalysis();
+  });
+
+  /* Chat */
+  const chatInput = document.getElementById('chat-input');
+  document.getElementById('send-btn').addEventListener('click', () => {
+    sendChat(chatInput.value);
+    chatInput.value = '';
+  });
+  chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat(chatInput.value);
+      chatInput.value = '';
+    }
+  });
+
+  document.querySelectorAll('.suggest-btn').forEach(btn => {
+    btn.addEventListener('click', () => sendChat(btn.dataset.prompt));
+  });
+
+  document.getElementById('clear-chat').addEventListener('click', () => {
+    const feed = document.getElementById('chat-feed');
+    feed.innerHTML = `
+      <div class="msg bot">
+        <div class="msg-icon"><i data-lucide="bot"></i></div>
+        <div class="bubble"><p>Chat cleared. How can I help you?</p></div>
+      </div>`;
+    lucide.createIcons();
+  });
+
+  /* Auto-load frontend preset on start */
+  document.querySelector('[data-preset="frontend"]').click();
+}
+</script>
 </body>
 </html>
